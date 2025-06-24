@@ -1,6 +1,7 @@
+// src/App.tsx
 import React from 'react';
-import FormQRCode from './components/FormQRCode';
-import './App.css';
+import { FormQRCode } from './components/FormQRCode/FormQRCode';
+import './styles/globals.css';
 
 function App() {
   return (

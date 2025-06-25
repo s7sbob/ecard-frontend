@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 
 * {
   margin: 0;
@@ -105,4 +103,147 @@ body {
   transform: scale(1.1);
   filter: brightness(1.2);
   transition: all 0.3s ease;
+}
+
+
+.qr-container svg {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.qr-container:hover svg {
+  transform: scale(1.02);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+/* تأثيرات للأشكال المختلفة */
+.qr-shape-beer-mug {
+  filter: drop-shadow(2px 2px 4px rgba(255, 193, 7, 0.3));
+}
+
+.qr-shape-brain {
+  filter: drop-shadow(2px 2px 4px rgba(156, 39, 176, 0.3));
+}
+
+.qr-shape-camera {
+  filter: drop-shadow(2px 2px 4px rgba(96, 125, 139, 0.3));
+}
+
+.qr-shape-cart {
+  filter: drop-shadow(2px 2px 4px rgba(76, 175, 80, 0.3));
+}
+
+
+
+
+
+
+
+/* src/index.css - إضافة هذه الستايلز */
+
+/* Slider Styles */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3B82F6;
+  cursor: pointer;
+  box-shadow: 0 0 2px 0 #555;
+}
+
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3B82F6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 2px 0 #555;
+}
+
+/* Accordion Animation */
+.accordion-content {
+  transition: max-height 0.3s ease-in-out;
+}
+
+/* Color Picker Hover Effects */
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Font Preview Hover */
+.font-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+
+
+/* src/index.css */
+/* QR Shape Styles */
+.qr-shape-fish svg {
+  clip-path: polygon(10% 50%, 25% 20%, 50% 10%, 75% 20%, 90% 50%, 75% 80%, 50% 90%, 25% 80%);
+}
+
+.qr-shape-airplane svg {
+  clip-path: polygon(50% 10%, 80% 30%, 90% 40%, 70% 50%, 90% 60%, 80% 70%, 50% 90%, 20% 70%, 10% 60%, 30% 50%, 10% 40%, 20% 30%);
+}
+
+.qr-shape-dress svg {
+  clip-path: polygon(40% 10%, 60% 10%, 65% 20%, 70% 40%, 80% 90%, 20% 90%, 30% 40%, 35% 20%);
+}
+
+.qr-shape-egg svg {
+  clip-path: ellipse(35% 45% at 50% 50%);
+}
+
+.qr-shape-heart svg {
+  clip-path: polygon(50% 85%, 15% 45%, 15% 30%, 25% 15%, 40% 15%, 50% 25%, 60% 15%, 75% 15%, 85% 30%, 85% 45%);
+}
+
+.qr-shape-star svg {
+  clip-path: polygon(50% 10%, 60% 35%, 85% 35%, 67% 55%, 75% 80%, 50% 65%, 25% 80%, 33% 55%, 15% 35%, 40% 35%);
+}
+
+.qr-shape-circle svg {
+  clip-path: circle(40% at 50% 50%);
+}
+
+.qr-shape-square svg {
+  clip-path: polygon(15% 15%, 85% 15%, 85% 85%, 15% 85%);
+}
+
+/* Hover Effects */
+.qr-shape-fish:hover svg {
+  filter: drop-shadow(4px 4px 12px rgba(59, 130, 246, 0.4));
+}
+
+.qr-shape-airplane:hover svg {
+  filter: drop-shadow(4px 4px 12px rgba(14, 165, 233, 0.4));
+}
+
+.qr-shape-heart:hover svg {
+  filter: drop-shadow(4px 4px 12px rgba(239, 68, 68, 0.4));
+}
+
+.qr-shape-star:hover svg {
+  filter: drop-shadow(4px 4px 12px rgba(245, 158, 11, 0.4));
+}
+
+
+.shape-background {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.shape-border {
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* Animation للشكل */
+.shape-container:hover .shape-background {
+  filter: drop-shadow(4px 4px 8px rgba(0, 0, 0, 0.2));
+  transition: filter 0.3s ease;
 }

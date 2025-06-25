@@ -1,6 +1,6 @@
 // src/hooks/useFormQRCode.ts
 import { useState } from 'react';
-import { FormQRCodeData, Stage, ProfileData, FormSettings, FormField, QRCodeSettings } from '../components/FormQRCode/types';
+import { FormQRCodeData, Stage, ProfileData, FormSettings, FormField, QRCodeSettings, DesignSettings } from '../components/FormQRCode/types';
 
 export const useFormQRCode = () => {
   const [currentStage, setCurrentStage] = useState<Stage>('content');
@@ -57,6 +57,30 @@ export const useFormQRCode = () => {
       icon: 'message',
     },
   ];
+
+  const getDefaultDesignSettings = (): DesignSettings => ({
+    background: '',
+    colors: {
+      primary: '#1f2937',
+      secondary: '#f59e0b',
+      primaryText: '#FFFFFF',
+      secondaryText: '#FFFFFF',
+      bodyText: '#000000',
+    },
+    font: 'system-ui, sans-serif',
+    cardStyle: {
+      background: true,
+      backgroundColor: '#FFFFFF',
+      cornerRadius: 12,
+      shadow: {
+        color: '#00000020',
+        x: 0,
+        y: 4,
+        blur: 12,
+        spread: 0,
+      },
+    },
+  });
 
   const [formData, setFormData] = useState<FormQRCodeData>({
     pageUrl: '',
@@ -125,15 +149,16 @@ export const useFormQRCode = () => {
       logoImage: '',
       logoSize: 50,
       logoOpacity: 1,
-      qrStyle: 'squares', // تحديث هذا
+      qrStyle: 'squares',
       eyeRadius: 0,
       eyeColor: '#000000',
-      frameStyle: '',
+      frameStyle: 'beer-mug',
       frameColor: '#000000',
       frameText: '',
       gradientType: 'none',
       gradientColors: ['#000000', '#FFFFFF'],
     },
+    designSettings: getDefaultDesignSettings(),
   });
 
   const updateFormData = (updates: Partial<FormQRCodeData>) => {
@@ -165,6 +190,13 @@ export const useFormQRCode = () => {
     setFormData(prev => ({
       ...prev,
       qrCodeSettings: { ...prev.qrCodeSettings, ...updates }
+    }));
+  };
+
+  const updateDesignSettings = (updates: Partial<DesignSettings>) => {
+    setFormData(prev => ({
+      ...prev,
+      designSettings: { ...prev.designSettings, ...updates }
     }));
   };
 
@@ -272,12 +304,13 @@ qrCodeSettings: {
   qrStyle: 'squares',
   eyeRadius: 0,
   eyeColor: '#000000',
-  frameStyle: 'normal', // تغيير من '' إلى 'normal'
+  frameStyle: 'fish', // قيمة افتراضية
   frameColor: '#000000',
   frameText: '',
   gradientType: 'none',
   gradientColors: ['#000000', '#FFFFFF'],
 },
+      designSettings: getDefaultDesignSettings(),
     });
     setCurrentStage('content');
   };
@@ -290,6 +323,7 @@ qrCodeSettings: {
     updateFormSettings,
     updateFormFields,
     updateQRCodeSettings,
+    updateDesignSettings, // إضافة هذا
     nextStage,
     previousStage,
     goToStage,

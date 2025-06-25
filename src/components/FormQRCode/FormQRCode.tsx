@@ -6,6 +6,7 @@ import { MobilePreview } from './components/MobilePreview';
 import { ContentStage } from './stages/ContentStage';
 import { Button } from '../ui/Button';
 import { QRCodeStage } from './stages/QRCodeStage';
+import { DesignStage } from './stages/DesignStage';
 
 export const FormQRCode: React.FC = () => {
   const {
@@ -34,8 +35,15 @@ export const FormQRCode: React.FC = () => {
             onNext={nextStage}
           />
         );
-      case 'design':
-        return <div className="text-center py-20 text-gray-500">Design stage coming soon...</div>;
+    case 'design':
+      return (
+        <DesignStage
+          formData={formData}
+          onUpdateFormData={updateFormData}
+          onNext={nextStage}
+          onPrevious={previousStage}
+        />
+      );
       case 'qrcode':
         return (
           <QRCodeStage

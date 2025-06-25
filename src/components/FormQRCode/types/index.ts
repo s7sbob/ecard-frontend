@@ -75,6 +75,7 @@ export interface FormQRCodeData {
   formEnabled: boolean;
   formSettings: FormSettings;
   formFields: FormField[];
+  designSettings: DesignSettings; // إضافة هذا
   qrCodeSettings: QRCodeSettings;
 }
 
@@ -159,10 +160,16 @@ export interface QRCodeSettings {
   eyeRadius: number;
   eyeColor: string;
   frameStyle: string;
+  qrAreaPath?: string; // مسار منطقة الـ QR code المحددة
   frameColor: string;
   frameText: string;
+  shapeSvg?: string;
+  qrAreaBounds?: { x: number; y: number; width: number; height: number };
+  noisePattern?: 'dots' | 'lines' | 'squares' | 'circles';
+  noiseIntensity?: number;
   gradientType: 'none' | 'linear' | 'radial';
   gradientColors: string[];
+  framePath?: string;       // ex: '/assets/qr-frames/star.svg'
 }
 
 export interface FormQRCodeData {
@@ -187,3 +194,29 @@ export interface Template {
 }
 
 export type Stage = 'content' | 'design' | 'qrcode';
+
+
+
+export interface DesignSettings {
+  background: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    primaryText: string;
+    secondaryText: string;
+    bodyText: string;
+  };
+  font: string;
+  cardStyle: {
+    background: boolean;
+    backgroundColor: string;
+    cornerRadius: number;
+    shadow: {
+      color: string;
+      x: number;
+      y: number;
+      blur: number;
+      spread: number;
+    };
+  };
+}

@@ -7,7 +7,10 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "custom-qrcode-browser": "^0.0.10",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.3",
     "lucide-react": "^0.522.0",
+    "path": "^0.12.7",
     "qr-code-styling": "^1.9.2",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
@@ -17,10 +20,11 @@
     "react-qrbtf": "^1.2.1",
     "react-qrcode-logo": "^3.0.0",
     "react-scripts": "5.0.1",
+    "sharp": "^0.34.2",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
-    "overrides": {
+  "overrides": {
     "react-qrbtf": {
       "react": "19.1.0",
       "react-dom": "19.1.0"

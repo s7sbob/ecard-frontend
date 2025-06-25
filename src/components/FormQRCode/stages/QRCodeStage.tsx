@@ -1,5 +1,5 @@
 // src/components/FormQRCode/stages/QRCodeStage.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { QRCodeSettings } from '../types';
 import { Button } from '../../ui/Button';
 import {
@@ -11,22 +11,10 @@ import {
   Settings,
   Tag,
 } from 'lucide-react';
-// المكونات الصحيحة من react-qrbtf
-import {
-  QRNormal,
-  QRRandRect,
-  QRDsj,
-  QR25D,
-  QRImage,
-  QRResImage,
-  QRBubble,
-  QRFunc,
-  QRLine,
-} from 'react-qrbtf';
 import { ColorPicker } from '../components/ColorPicker';
-import { qrShapesData } from '../data/qrShapes';
-import { stickersData } from '../data/stickers';
-import { templatesData } from '../data/templates';
+import { FramedQRCode } from '../components/FramedQRCode';
+import { loadSVGContent, svgShapeFiles } from '../utils/svgShapeLoader'; // استخدام الـ SVG files الموجودة عندك
+import { loadSvgPath } from '../utils/loadSvgPath';
 
 interface QRCodeStageProps {
   qrCodeSettings: QRCodeSettings;
@@ -41,338 +29,222 @@ export const QRCodeStage: React.FC<QRCodeStageProps> = ({
   onPrevious,
   onSave,
 }) => {
-  const [activeTab, setActiveTab] = useState<'shapes' | 'predesigned' | 'stickers' | 'colors' | 'logos' | 'decorate'>('shapes');
+  const [activeTab, setActiveTab] = useState<'shapes' | 'colors' | 'logos' | 'decorate'>('shapes');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const qrRef = useRef<any>(null);
 
-  const handleShapeSelect = (shapeId: string) => {
-    onUpdateQRCodeSettings({ 
-      frameStyle: shapeId
-    });
-  };
-
-  const handleStickerSelect = (stickerId: string) => {
-    const selectedSticker = stickersData.find(sticker => sticker.id === stickerId);
-    if (selectedSticker) {
-      onUpdateQRCodeSettings({ 
-        frameStyle: stickerId,
-        frameColor: selectedSticker.color 
+  // اختيار الشكل من الـ SVG files الموجودة
+const handleShapeSelect = useCallback(async (shapeId: string) => {
+  const shape = svgShapeFiles.find(s => s.id === shapeId);
+  if (shape) {
+    try {
+      // استخدام loadSVGContent بدلاً من fetch مباشرة
+      const svgContent = await loadSVGContent(shape.path);
+      
+      onUpdateQRCodeSettings({
+        frameStyle: shape.id,
+        shapeSvg: svgContent
       });
+    } catch (error) {
+      console.error('Error loading SVG:', error);
     }
-  };
-
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  }
+}, [onUpdateQRCodeSettings]);
+  // رفع اللوجو
+  const handleLogoUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && file.size <= 2 * 1024 * 1024) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const logoImage = e.target?.result as string;
         onUpdateQRCodeSettings({ logoImage });
       };
       reader.readAsDataURL(file);
+    } else if (file) {
+      alert('حجم الملف كبير جداً. يرجى اختيار ملف أقل من 2 ميجابايت.');
     }
-  };
+  }, [onUpdateQRCodeSettings]);
 
-  const handleDownload = () => {
-    if (qrRef.current && qrRef.current.toCanvas) {
-      qrRef.current.toCanvas().then((canvas: HTMLCanvasElement) => {
-        const link = document.createElement('a');
-        link.download = 'qr-code.png';
-        link.href = canvas.toDataURL();
-        link.click();
-      });
-    }
-  };
-
-  const resetQRCode = () => {
+  // إعادة تعيين الإعدادات
+  const resetQRCode = useCallback(() => {
     onUpdateQRCodeSettings({
       bgColor: '#FFFFFF',
       fgColor: '#000000',
-      eyeColor: '#000000',
-      qrStyle: 'squares',
       logoImage: '',
-      frameStyle: 'normal', // تعديل القيمة الافتراضية
+      frameStyle: '',
+      shapeSvg: '',
+      noiseIntensity: 25,
+      noisePattern: 'dots',
+      logoSize: 40
     });
-  };
+  }, [onUpdateQRCodeSettings]);
 
-  // خريطة المكونات الصحيحة
-  const componentsMap = {
-    QRNormal,
-    QRRandRect,
-    QRDsj,
-    QR25D,
-    QRImage,
-    QRResImage,
-    QRBubble,
-    QRFunc,
-    QRLine,
-  } as const;
-
-const getQRComponent = () => {
-  const selectedShape = qrShapesData.find(
-    (shape) => shape.id === qrCodeSettings.frameStyle,
-  );
-
-  const componentKey = (selectedShape?.component || 'QRNormal') as keyof typeof componentsMap;
-  const Comp = componentsMap[componentKey] || QRNormal;
-
-  // الـ props الأساسية
-  let qrProps: any = {
-    value: qrCodeSettings.value || 'https://linko.page/sy9x4abbtauu',
-    size: 400,
-    level: 'M' as const,
-    bgColor: qrCodeSettings.bgColor,
-    fgColor: qrCodeSettings.fgColor,
-  };
-
-  // إضافة اللوجو إذا كان موجود
-  if (qrCodeSettings.logoImage) {
-    qrProps.icon = qrCodeSettings.logoImage;
-    qrProps.iconScale = Math.min(qrCodeSettings.logoSize / 400, 0.3);
-  }
-
-  // إضافة معاملات خاصة حسب نوع الشكل
-  if (selectedShape?.params) {
-    const params = selectedShape.params;
-    
-    // للـ QRFunc - إضافة نوع الدالة
-    if (componentKey === 'QRFunc') {
-      qrProps.type = params.type || 'A';
-      qrProps.amplitude = 0.1;
-      qrProps.frequency = 2;
-    }
-    
-    // للـ QRLine - إضافة نمط الخط
-    if (componentKey === 'QRLine') {
-      qrProps.direction = params.style === 'vertical' ? 'v' : 'h';
-      qrProps.width = 0.8;
-    }
-    
-    // للـ QRBubble - إضافة نمط الفقاعات
-    if (componentKey === 'QRBubble') {
-      qrProps.opacity = 0.8;
-      qrProps.scale = 0.9;
-    }
-    
-    // للـ QR25D - إضافة تأثير ثلاثي الأبعاد
-    if (componentKey === 'QR25D') {
-      qrProps.depth = 0.3;
-      qrProps.perspective = 0.2;
-    }
-    
-    // للـ QRDsj - إضافة نمط DSJ
-    if (componentKey === 'QRDsj') {
-      qrProps.density = 0.8;
-      qrProps.opacity = 0.9;
-    }
-  }
-
-  // إضافة إطار الستيكر إذا كان مختار
-  const selectedSticker = stickersData.find(s => s.id === qrCodeSettings.frameStyle);
-  if (selectedSticker) {
-    // إضافة لون الإطار
-    qrProps.fgColor = selectedSticker.color;
-    
-    // إضافة تدرج إذا كان متوفر
-    if (selectedSticker.gradient) {
-      qrProps.fgColor = selectedSticker.gradient[0];
-      qrProps.bgColor = selectedSticker.gradient[1];
-    }
-  }
-
-  return (
-    <div className="relative">
-      <Comp {...qrProps} ref={qrRef} />
+  // تنزيل الـ QR Code
+  const handleDownload = useCallback(() => {
+    const svgElement = document.querySelector('#qr-preview svg');
+    if (svgElement) {
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
       
-      {/* إضافة إطار الستيكر كـ overlay */}
-      {selectedSticker && (
-        <div className="absolute inset-0 pointer-events-none">
-          {selectedSticker.frameType === 'neon' && (
-            <div 
-              className="absolute inset-0 rounded-lg"
-              style={{
-                boxShadow: `0 0 20px ${selectedSticker.color}, 0 0 40px ${selectedSticker.color}, 0 0 60px ${selectedSticker.color}`,
-                border: `2px solid ${selectedSticker.color}`,
-              }}
-            />
-          )}
-          
-          {selectedSticker.frameType === 'vintage' && (
-            <div 
-              className="absolute inset-0 rounded-lg border-4"
-              style={{
-                borderColor: selectedSticker.color,
-                borderStyle: 'double',
-                background: `linear-gradient(45deg, transparent 30%, ${selectedSticker.color}20 50%, transparent 70%)`,
-              }}
-            />
-          )}
-          
-          {selectedSticker.frameType === 'gradient' && selectedSticker.gradient && (
-            <div 
-              className="absolute inset-0 rounded-lg border-4"
-              style={{
-                background: `linear-gradient(45deg, ${selectedSticker.gradient[0]}, ${selectedSticker.gradient[1]})`,
-                padding: '4px',
-              }}
-            />
-          )}
-          
-          {/* أيقونة الستيكر في الزاوية */}
-          <div className="absolute -top-2 -right-2 text-2xl bg-white rounded-full p-1 shadow-lg">
-            {selectedSticker.icon}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+      const downloadLink = document.createElement('a');
+      downloadLink.href = svgUrl;
+      downloadLink.download = 'qr-code.svg';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(svgUrl);
+    }
+  }, []);
+
+  // QR Component
+  const qrComponent = useMemo(() => {
+    return (
+      <FramedQRCode
+        value={qrCodeSettings.value || 'https://linko.page/sy9x4abbtauu'}
+        size={350}
+        bgColor={qrCodeSettings.bgColor}
+        fgColor={qrCodeSettings.fgColor}
+        logoImage={qrCodeSettings.logoImage}
+        logoSize={qrCodeSettings.logoSize}
+        shapeSvg={qrCodeSettings.shapeSvg}
+      />
+    );
+  }, [
+    qrCodeSettings.value,
+    qrCodeSettings.bgColor,
+    qrCodeSettings.fgColor,
+    qrCodeSettings.logoImage,
+    qrCodeSettings.logoSize,
+    qrCodeSettings.shapeSvg,
+    qrCodeSettings.noisePattern,
+    qrCodeSettings.noiseIntensity
+  ]);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'shapes':
-        const shapeCategories = Array.from(new Set(qrShapesData.map(shape => shape.category)));
+        // استخدام الـ categories الموجودة في svgShapeFiles
+        const shapeCategories = Array.from(new Set(svgShapeFiles.map(shape => shape.category)));
         return (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {shapeCategories.map(category => (
-              <div key={category} className="space-y-4">
-                <h4 className="text-lg font-semibold text-gray-800 capitalize border-b border-gray-200 pb-2">
+              <div key={category} className="space-y-3">
+                <h4 className="text-md font-semibold text-gray-800 capitalize border-b border-gray-200 pb-2">
                   {category.replace('-', ' ')} Shapes
                 </h4>
-                <div className="grid grid-cols-6 gap-4">
-                  {qrShapesData
+                <div className="grid grid-cols-5 gap-3">
+                  {svgShapeFiles
                     .filter(shape => shape.category === category)
                     .map((shape) => (
                       <button
                         key={shape.id}
-                        className={`p-4 border-2 rounded-xl flex flex-col items-center space-y-2 transition-all hover:shadow-lg ${
+                        className={`p-3 border-2 rounded-lg flex flex-col items-center space-y-1 transition-all hover:shadow-md ${
                           qrCodeSettings.frameStyle === shape.id
-                            ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                            : 'border-gray-200 hover:border-gray-300 hover:scale-105'
+                            ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => handleShapeSelect(shape.id)}
                       >
-                        <div className="text-3xl">{shape.icon}</div>
-                        <span className="text-xs text-center font-medium leading-tight">{shape.name}</span>
-                        <span className="text-xs text-gray-500">{shape.component}</span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case 'stickers':
-        const stickerCategories = Array.from(new Set(stickersData.map(sticker => sticker.category)));
-        return (
-          <div className="space-y-8">
-            {stickerCategories.map(category => (
-              <div key={category} className="space-y-4">
-                <h4 className="text-lg font-semibold text-gray-800 capitalize border-b border-gray-200 pb-2">
-                  {category.replace('-', ' ')} Stickers
-                </h4>
-                <div className="grid grid-cols-6 gap-4">
-                  {stickersData
-                    .filter(sticker => sticker.category === category)
-                    .map((sticker) => (
-                      <button
-                        key={sticker.id}
-                        className={`p-4 border-2 rounded-xl flex flex-col items-center space-y-2 transition-all hover:shadow-lg ${
-                          qrCodeSettings.frameStyle === sticker.id
-                            ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                            : 'border-gray-200 hover:border-gray-300 hover:scale-105'
-                        }`}
-                        onClick={() => handleStickerSelect(sticker.id)}
-                      >
-                        <div 
-                          className="text-3xl p-2 rounded-lg"
-                          style={{ backgroundColor: `${sticker.color}20` }}
-                        >
-                          {sticker.icon}
+                        <div className="w-8 h-8 flex items-center justify-center text-2xl">
+                          {shape.icon}
                         </div>
-                        <span className="text-xs text-center font-medium leading-tight">{sticker.name}</span>
+                        <span className="text-xs text-center font-medium">{shape.name}</span>
                       </button>
                     ))}
                 </div>
               </div>
             ))}
-          </div>
-        );
-
-      case 'predesigned':
-        const templateCategories = Array.from(new Set(templatesData.map(template => template.category)));
-        return (
-          <div className="space-y-8">
-            {templateCategories.map(category => (
-              <div key={category} className="space-y-4">
-                <h4 className="text-lg font-semibold text-gray-800 capitalize border-b border-gray-200 pb-2">
-                  {category.replace('-', ' ')} Templates
-                </h4>
-                <div className="grid grid-cols-4 gap-6">
-                  {templatesData
-                    .filter(template => template.category === category)
-                    .map((template) => (
-                      <button
-                        key={template.id}
-                        className="p-6 border-2 rounded-xl flex flex-col items-center space-y-3 hover:border-blue-500 hover:shadow-lg transition-all hover:scale-105"
-                        onClick={() => {
-                          onUpdateQRCodeSettings({
-                            fgColor: template.colors[0],
-                            bgColor: template.colors[1],
-                            eyeColor: template.colors[0],
-                          });
-                        }}
-                      >
-                        <div
-                          className="w-20 h-20 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md"
-                          style={{
-                            background: template.gradient 
-                              ? `linear-gradient(135deg, ${template.colors[0]}, ${template.colors[1]})` 
-                              : template.colors[0],
-                          }}
-                        >
-                          QR
-                        </div>
-                        <span className="text-sm font-medium text-center">{template.name}</span>
-                      </button>
-                    ))}
-                </div>
+            
+            {/* خيار بدون شكل */}
+            <div className="space-y-3">
+              <h4 className="text-md font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Basic
+              </h4>
+              <div className="grid grid-cols-5 gap-3">
+                <button
+                  className={`p-3 border-2 rounded-lg flex flex-col items-center space-y-1 transition-all hover:shadow-md ${
+                    !qrCodeSettings.frameStyle || qrCodeSettings.frameStyle === 'none'
+                      ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => onUpdateQRCodeSettings({ frameStyle: 'none', shapeSvg: '' })}
+                >
+                  <div className="w-8 h-8 flex items-center justify-center text-2xl border-2 border-dashed border-gray-300 rounded">
+                    ⬜
+                  </div>
+                  <span className="text-xs text-center font-medium">None</span>
+                </button>
               </div>
-            ))}
+            </div>
           </div>
         );
 
       case 'colors':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <ColorPicker
-              color={qrCodeSettings.fgColor}
-              onChange={(color) => onUpdateQRCodeSettings({ fgColor: color })}
-              label="Foreground Color"
-            />
-            <ColorPicker
-              color={qrCodeSettings.bgColor}
-              onChange={(color) => onUpdateQRCodeSettings({ bgColor: color })}
-              label="Background Color"
-            />
-            <ColorPicker
-              color={qrCodeSettings.eyeColor}
-              onChange={(color) => onUpdateQRCodeSettings({ eyeColor: color })}
-              label="Eye Color"
-            />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ColorPicker
+                color={qrCodeSettings.fgColor}
+                onChange={(color) => onUpdateQRCodeSettings({ fgColor: color })}
+                label="QR Code Color"
+              />
+              <ColorPicker
+                color={qrCodeSettings.bgColor}
+                onChange={(color) => onUpdateQRCodeSettings({ bgColor: color })}
+                label="Background Color"
+              />
+            </div>
+            
+            {/* الألوان السريعة */}
+            <div className="space-y-3">
+              <h4 className="text-md font-semibold text-gray-800">Quick Colors</h4>
+              <div className="grid grid-cols-8 gap-3">
+                {[
+                  { fg: '#000000', bg: '#FFFFFF', name: 'Classic' },
+                  { fg: '#FFFFFF', bg: '#000000', name: 'Inverted' },
+                  { fg: '#1E40AF', bg: '#FFFFFF', name: 'Blue' },
+                  { fg: '#DC2626', bg: '#FFFFFF', name: 'Red' },
+                  { fg: '#059669', bg: '#FFFFFF', name: 'Green' },
+                  { fg: '#7C3AED', bg: '#FFFFFF', name: 'Purple' },
+                  { fg: '#EA580C', bg: '#FFFFFF', name: 'Orange' },
+                  { fg: '#0891B2', bg: '#FFFFFF', name: 'Cyan' },
+                ].map((colorSet) => (
+                  <button
+                    key={colorSet.name}
+                    className="flex flex-col items-center space-y-1 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => onUpdateQRCodeSettings({ 
+                      fgColor: colorSet.fg, 
+                      bgColor: colorSet.bg 
+                    })}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded border-2 border-gray-200"
+                      style={{ backgroundColor: colorSet.bg }}
+                    >
+                      <div 
+                        className="w-full h-full rounded flex items-center justify-center text-xs font-bold"
+                        style={{ color: colorSet.fg }}
+                      >
+                        QR
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600">{colorSet.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         );
 
       case 'logos':
         return (
-          <div className="space-y-8">
+          <div className="space-y-6">
             <div className="text-center">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 flex items-center space-x-3 mx-auto shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-2 mx-auto shadow-md transition-all"
               >
-                <Upload size={20} />
+                <Upload size={18} />
                 <span className="font-medium">Upload Logo</span>
               </button>
               <p className="text-sm text-gray-500 mt-2">PNG, JPG, SVG up to 2MB</p>
@@ -386,47 +258,85 @@ const getQRComponent = () => {
             </div>
 
             {qrCodeSettings.logoImage && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div className="text-center">
                   <img 
                     src={qrCodeSettings.logoImage} 
                     alt="Logo Preview" 
-                    className="w-20 h-20 object-cover rounded-lg mx-auto border-2 border-gray-200"
+                    className="w-16 h-16 object-cover rounded-lg mx-auto border-2 border-gray-200 shadow-sm"
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <label className="block text-sm font-semibold text-gray-700">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Logo Size: {qrCodeSettings.logoSize}px
                     </label>
                     <input
                       type="range"
                       min="20"
-                      max="120" // تقليل الحد الأقصى
+                      max="80"
                       value={qrCodeSettings.logoSize}
                       onChange={(e) => onUpdateQRCodeSettings({ logoSize: parseInt(e.target.value) })}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
 
-                  <div className="space-y-4">
-                    <label className="block text-sm font-semibold text-gray-700">
-                      Logo Opacity: {Math.round(qrCodeSettings.logoOpacity * 100)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={qrCodeSettings.logoOpacity}
-                      onChange={(e) => onUpdateQRCodeSettings({ logoOpacity: parseFloat(e.target.value) })}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
+                  <button
+                    onClick={() => onUpdateQRCodeSettings({ logoImage: '' })}
+                    className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    Remove Logo
+                  </button>
                 </div>
               </div>
             )}
+          </div>
+        );
+
+      case 'decorate':
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="text-md font-semibold text-gray-800">Noise Pattern</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'dots', name: 'Dots', icon: '•••' },
+                    { id: 'squares', name: 'Squares', icon: '■■■' },
+                    { id: 'lines', name: 'Lines', icon: '|||' },
+                    { id: 'circles', name: 'Circles', icon: '○○○' }
+                  ].map((pattern) => (
+                    <button
+                      key={pattern.id}
+                      className={`p-3 border-2 rounded-lg text-center transition-all ${
+                        qrCodeSettings.noisePattern === pattern.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => onUpdateQRCodeSettings({ noisePattern: pattern.id as any })}
+                    >
+                      <div className="text-lg mb-1">{pattern.icon}</div>
+                      <span className="text-xs font-medium">{pattern.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Noise Intensity: {qrCodeSettings.noiseIntensity || 25}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="60"
+                  value={qrCodeSettings.noiseIntensity || 25}
+                  onChange={(e) => onUpdateQRCodeSettings({ noiseIntensity: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
         );
 
@@ -441,32 +351,30 @@ const getQRComponent = () => {
   };
 
   const tabs = [
-    { id: 'shapes', label: 'QR SHAPES', icon: <Shapes size={18} /> },
-    { id: 'predesigned', label: 'PRE-DESIGNED', icon: <Palette size={18} /> },
-    { id: 'stickers', label: 'STICKERS', icon: <Tag size={18} /> },
-    { id: 'colors', label: 'COLORS', icon: <Palette size={18} /> },
-    { id: 'logos', label: 'LOGOS', icon: <Upload size={18} /> },
-    { id: 'decorate', label: 'DECORATE', icon: <Palette size={18} /> },
+    { id: 'shapes', label: 'SHAPES', icon: <Shapes size={16} /> },
+    { id: 'colors', label: 'COLORS', icon: <Palette size={16} /> },
+    { id: 'logos', label: 'LOGOS', icon: <Upload size={16} /> },
+    { id: 'decorate', label: 'DECORATE', icon: <Tag size={16} /> },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-3">Customize Your QR Code</h2>
-        <p className="text-lg text-gray-600">Design your QR code to match your brand perfectly</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Customize Your QR Code</h2>
+        <p className="text-md text-gray-600">Design your QR code with custom shapes and effects</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left Panel - Customization (2/3 width) */}
-        <div className="xl:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left Panel - Customization */}
+        <div className="xl:col-span-2 space-y-4">
           {/* Tabs */}
           <div className="border-b border-gray-200 bg-gray-50 rounded-t-lg">
             <nav className="flex space-x-1 p-2 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`flex items-center space-x-2 py-3 px-4 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+                  className={`flex items-center space-x-2 py-2 px-4 rounded-md font-medium text-sm whitespace-nowrap transition-all ${
                     activeTab === tab.id
                       ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
@@ -481,33 +389,25 @@ const getQRComponent = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white border border-gray-200 rounded-b-lg p-8 min-h-[600px] max-h-[600px] overflow-y-auto">
+          <div className="bg-white border border-gray-200 rounded-b-lg p-6 min-h-[500px] max-h-[500px] overflow-y-auto">
             {renderTabContent()}
           </div>
         </div>
 
-        {/* Right Panel - Preview (1/3 width) */}
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center sticky top-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-6">QR Code Preview</h3>
+        {/* Right Panel - Preview */}
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-center sticky top-8">
+            <h3 className="text-md font-semibold text-gray-800 mb-4">QR Code Preview</h3>
             
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 flex justify-center">
-              {getQRComponent()}
+            <div id="qr-preview" className="bg-gray-50 rounded-lg p-4 mb-4 flex justify-center">
+              {qrComponent}
             </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                <input type="checkbox" className="w-4 h-4 rounded" />
-                <span>Add 3D Effect</span>
-              </div>
-              
+            <div className="space-y-3">
               <div className="flex items-center justify-center space-x-4 text-sm">
-                <button className="text-blue-600 hover:text-blue-700 font-medium">
-                  Set as default
-                </button>
                 <button 
                   onClick={resetQRCode}
-                  className="text-gray-600 hover:text-gray-700 font-medium flex items-center space-x-1"
+                  className="text-gray-600 hover:text-gray-700 font-medium flex items-center space-x-1 transition-colors"
                 >
                   <RotateCcw size={14} />
                   <span>Reset</span>
@@ -517,44 +417,36 @@ const getQRComponent = () => {
           </div>
 
           {/* Download Options */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Button
               onClick={handleDownload}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               size="lg"
             >
-              <Download size={20} className="mr-2" />
-              Download Large Size
+              <Download size={18} className="mr-2" />
+              Download QR Code
             </Button>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={() => handleDownload()}
-                variant="outline"
-                className="text-sm"
-              >
-                PNG
-              </Button>
-              <Button
-                onClick={() => handleDownload()}
-                variant="outline"
-                className="text-sm"
-              >
-                SVG
-              </Button>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex justify-between pt-8 border-t border-gray-200">
-        <Button onClick={onPrevious} variant="outline" size="lg" className="flex items-center space-x-2">
+      <div className="flex justify-between pt-6 border-t border-gray-200">
+        <Button 
+          onClick={onPrevious} 
+          variant="outline" 
+          size="lg" 
+          className="flex items-center space-x-2"
+        >
           <span>←</span>
           <span>Back to Design</span>
         </Button>
-        <Button onClick={onSave} size="lg" className="bg-green-600 hover:bg-green-700 flex items-center space-x-2">
-          <Download size={20} />
+        <Button 
+          onClick={onSave} 
+          size="lg" 
+          className="bg-green-600 hover:bg-green-700 flex items-center space-x-2"
+        >
+          <Download size={18} />
           <span>Save & Download</span>
         </Button>
       </div>

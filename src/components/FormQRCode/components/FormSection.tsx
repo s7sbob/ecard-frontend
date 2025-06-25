@@ -1,6 +1,6 @@
 // src/components/FormQRCode/components/FormSection.tsx
 import React, { useState, useRef } from 'react';
-import { Mail, Phone, MessageSquare, User, Building, Upload, X, Trash2, GripVertical } from 'lucide-react';
+import { Mail, MessageSquare, User, Upload, X, Trash2, GripVertical } from 'lucide-react';
 import { ComponentToggle } from './ComponentToggle';
 import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
